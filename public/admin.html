@@ -100,8 +100,14 @@
       </section>
 
       <section class="card page-view" data-view="patients" hidden>
-        <h1>Patients</h1><p class="sub">Patients with an active queue number.</p>
-        <div class="scroll"><table><thead><tr><th>Number</th><th>Patient</th><th>Service</th><th>Status</th><th>Waiting</th></tr></thead><tbody id="patientRows"></tbody></table></div>
+        <h1>Patients</h1><p class="sub">Search recent queue visits by patient name, queue number, or service.</p>
+        <form id="patientSearchForm" class="patient-search">
+          <label for="patientSearch">Search visits</label>
+          <div class="patient-search-row"><input id="patientSearch" type="search" maxlength="80" placeholder="Name, e.g. G-012, or service"><button class="btn sm">Search</button></div>
+        </form>
+        <p id="patientSearchStatus" class="patient-search-status" aria-live="polite">Showing the latest visits.</p>
+        <div class="err" id="patientSearchErr" role="alert"></div>
+        <div class="scroll"><table><thead><tr><th>Number</th><th>Patient</th><th>Service</th><th>Status</th><th>Registered</th></tr></thead><tbody id="patientRows"></tbody></table></div>
       </section>
 
       <section class="card page-view" data-view="records" hidden>
@@ -172,7 +178,11 @@ $("loginForm").onsubmit = async e => {
   try { const r = await api("/api/staff/login", "POST", { password: $("pw").value }); localStorage.setItem(KEY, r.token); showPanel(); }
   catch (err) { $("lErr").textContent = err.message; }
 };
-$("logout").onclick = () => { localStorage.removeItem(KEY); showLogin(); };
+$("logout").onclick = async () => {
+  try { await api("/api/auth/logout", "POST"); }
+  catch (err) { alert("The local sign-out completed, but the server session could not be cleared: " + err.message); }
+  finally { localStorage.removeItem(KEY); showLogin(); }
+};
 function showLogin() { clearInterval(timer); $("login").classList.remove("hidden"); ["panel", "chat", "logout"].forEach(i => $(i).classList.add("hidden")); }
 function showPanel() {
   $("login").classList.add("hidden"); ["panel", "chat", "logout"].forEach(i => $(i).classList.remove("hidden"));
@@ -192,8 +202,27 @@ function selectPage(page) {
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
+  if (page === "patients") loadPatients();
 }
 const act = async (fn) => { try { await fn(); } catch (e) { alert(e.message); } load(); };
+
+async function loadPatients() {
+  const search = $("patientSearch").value.trim();
+  $("patientSearchErr").textContent = "";
+  $("patientSearchStatus").textContent = "Searching visits…";
+  try {
+    const result = await api("/api/staff/patients" + (search ? "?search=" + encodeURIComponent(search) : ""));
+    $("patientRows").innerHTML = result.tickets.length
+      ? result.tickets.map(t => `<tr><td><b>${esc(t.number)}</b></td><td>${esc(t.name)}</td><td>${esc(t.department)}</td>
+        <td><span class="pill ${esc(t.status)}">${esc(t.status.replace("_", " "))}</span></td><td>${timeAgo(t.createdAt)}</td></tr>`).join("")
+      : `<tr><td colspan="5" style="color:var(--mut)">${search ? "No visits match that search." : "No visits have been recorded yet."}</td></tr>`;
+    $("patientSearchStatus").textContent = `Showing ${result.tickets.length} ${search ? "matching" : "recent"} visit(s), up to 50.`;
+  } catch (err) {
+    $("patientRows").innerHTML = "";
+    $("patientSearchStatus").textContent = "";
+    $("patientSearchErr").textContent = err.message;
+  }
+}
 
 async function load() {
   let o; try { o = await api("/api/staff/overview"); } catch (e) { return; }
@@ -222,6 +251,7 @@ async function load() {
   $("reportStats").innerHTML = Object.keys(reportLabels).map(k => `<div class="stat"><b>${o.stats[k]}</b><span>${reportLabels[k]}</span></div>`).join("");
 }
 
+$("patientSearchForm").onsubmit = e => { e.preventDefault(); loadPatients(); };
 document.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return; const d = b.dataset;
   if (d.page) selectPage(d.page);

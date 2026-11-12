@@ -58,6 +58,11 @@ table{width:100%;border-collapse:collapse;font-size:14px}th{text-align:left;padd
 .dashboard-main{flex:1;background:#f3f3f3;padding:18px;display:flex;flex-direction:column}
 .workspace{flex:1;background:rgba(255,255,255,.18);border-radius:22px;padding:18px}
 .queue-panel{background:rgba(255,255,255,.95);border-radius:18px;border:1px solid #e3e5ea;box-shadow:0 10px 30px rgba(85,105,140,.06)}
+.patient-search{display:grid;gap:8px;max-width:620px;margin:12px 0 8px}
+.patient-search-row{display:flex;align-items:center;gap:10px}
+.patient-search-row input{flex:1;min-width:0;margin:0}
+.patient-search-row button{flex:none}
+.patient-search-status{min-height:20px;margin:0 0 12px;color:var(--mut);font-size:14px}
 .module-empty{display:grid;gap:8px;padding:18px;border:1px solid var(--line);border-radius:10px;background:#f8fafb}
 .module-empty span{color:var(--mut);line-height:1.5}
 body.auth-mode{min-height:100vh}

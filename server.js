@@ -112,6 +112,15 @@ app.post("/api/staff/login", (req, res) => {
   res.json({ token });
 });
 
+app.post("/api/auth/logout", (req, res) => {
+  const token = (req.get("authorization") || "").replace("Bearer ", "");
+  if (token && db.sessions[token]) {
+    delete db.sessions[token];
+    save();
+  }
+  res.json({ ok: true });
+});
+
 // ---------- patient: queue ----------
 app.get("/api/departments", (_req, res) =>
   res.json({ departments: db.departments.map(d => ({ id: d.id, name: d.name, open: d.open, waiting: waitingIn(d.id).length, avgMinutes: d.avgMinutes })) }));
@@ -183,6 +192,31 @@ app.get("/api/staff/overview", needStaff, (_req, res) => {
     stats: ["waiting", "serving", "completed", "cancelled", "no_show"].reduce((o, s) => (o[s] = db.tickets.filter(t => t.status === s).length, o), {}),
     agentLog: db.agentLog.slice(0, 25),
   });
+});
+
+app.get("/api/staff/patients", needStaff, (req, res) => {
+  if (req.query.search !== undefined && typeof req.query.search !== "string") {
+    return res.status(400).json({ error: "Search must be a single text value." });
+  }
+  const search = String(req.query.search || "").trim().slice(0, 80).toLowerCase();
+  const tickets = db.tickets
+    .slice()
+    .sort((a, b) => b.id - a.id)
+    .filter(t => {
+      const department = dept(t.deptId);
+      return !search || [t.name, t.number, department?.name].some(value =>
+        String(value || "").toLowerCase().includes(search));
+    })
+    .slice(0, 50)
+    .map(t => ({
+      id: t.id,
+      number: t.number,
+      name: t.name,
+      department: dept(t.deptId)?.name || "?",
+      status: t.status,
+      createdAt: t.createdAt,
+    }));
+  res.json({ tickets });
 });
 
 app.post("/api/staff/call-next", needStaff, (req, res) => res.json(callNext((req.body || {}).departmentId, "Staff")));

@@ -108,7 +108,11 @@ $("authForm").onsubmit = async e => {
     localStorage.setItem(KEY, r.token); showApp();
   } catch (err) { $("authErr").textContent = err.message; }
 };
-$("logout").onclick = () => { localStorage.removeItem(KEY); showAuth(); };
+$("logout").onclick = async () => {
+  try { await api("/api/auth/logout", "POST"); }
+  catch (err) { alert("The local sign-out completed, but the server session could not be cleared: " + err.message); }
+  finally { localStorage.removeItem(KEY); showAuth(); }
+};
 
 function showAuth() {
   document.body.classList.add("auth-mode");
