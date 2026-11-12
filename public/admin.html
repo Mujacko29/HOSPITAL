@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HospitalQueueAI - Staff</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><div class="logo">🏥 HospitalQueueAI · Staff</div>
+<nav><a href="index.html">Patient</a><a class="on" href="admin.html">Staff</a><button id="logout" class="hidden">Log out</button></nav></header>
+<main>
+<section id="login" class="card" style="max-width:420px;margin:20px auto">
+  <h1>Staff login</h1><p class="sub">Only hospital staff can manage the queue.</p>
+  <form id="loginForm"><label for="pw">Staff password</label><input id="pw" type="password">
+  <div class="err" id="lErr"></div><button class="btn" style="width:100%">Log in</button></form>
+</section>
+
+<section id="panel" class="hidden admin-shell">
+  <aside class="sidebar">
+    <div class="nav-group">
+      <div class="nav-title">Clinical</div>
+      <button class="nav-item active" type="button" data-page="dashboard">
+        <span class="nav-icon">▣</span>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-item" type="button" data-page="patients">
+        <span class="nav-icon">☰</span>
+        <span>Patients</span>
+      </button>
+      <button class="nav-item" type="button" data-page="records">
+        <span class="nav-icon">▤</span>
+        <span>Records</span>
+      </button>
+      <button class="nav-item" type="button" data-page="lab-results">
+        <span class="nav-icon">◫</span>
+        <span>Lab Results</span>
+      </button>
+      <button class="nav-item" type="button" data-page="medications">
+        <span class="nav-icon">◍</span>
+        <span>Medications</span>
+      </button>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Administration</div>
+      <button class="nav-item" type="button" data-page="appointments">
+        <span class="nav-icon">◫</span>
+        <span>Appointments</span>
+      </button>
+      <button class="nav-item" type="button" data-page="billing">
+        <span class="nav-icon">◫</span>
+        <span>Billing</span>
+      </button>
+      <button class="nav-item" type="button" data-page="reports">
+        <span class="nav-icon">▤</span>
+        <span>Reports</span>
+      </button>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">System</div>
+      <button class="nav-item" type="button" data-page="audit-trail">
+        <span class="nav-icon">◌</span>
+        <span>Audit Trail</span>
+      </button>
+      <button class="nav-item" type="button" data-page="users">
+        <span class="nav-icon">◎</span>
+        <span>Users</span>
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="nav-item profile-item" type="button" data-page="profile">
+        <span class="nav-icon">◔</span>
+        <span>My Profile</span>
+      </button>
+      <button class="nav-item profile-item" type="button" data-page="about">
+        <span class="nav-icon">◌</span>
+        <span>About</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="dashboard-main">
+    <div class="workspace">
+      <section class="queue-panel card page-view active" data-view="dashboard">
+        <h1>Queue control</h1><p class="sub">Live view, refreshed every 3 seconds.</p>
+        <div class="stats" id="stats"></div>
+
+        <div class="grid">
+          <div class="card"><h2>Departments</h2><div id="depts"></div>
+            <form id="addDept" style="margin-top:16px;display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:start">
+              <input id="dName" placeholder="New service name" style="margin:0"><input id="dAvg" type="number" min="1" placeholder="Min/patient" style="margin:0"><button class="btn sm" style="padding:12px">Add</button>
+            </form><div class="err" id="dErr" style="margin-top:8px"></div>
+          </div>
+          <div class="card"><h2>🤖 Queue agent</h2>
+            <p class="sub" style="margin-bottom:10px">Monitors every queue, notifies patients when they're 2 away, calls the next patient when a counter is free, and flags overload.</p>
+            <label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="auto" style="width:auto;margin:0"> Auto-call next patient</label>
+            <div id="log" style="margin-top:14px;max-height:260px;overflow-y:auto"></div>
+          </div>
+        </div>
+
+        <div class="card"><h2>Patients in queue</h2><div class="scroll"><table><thead><tr><th>Number</th><th>Patient</th><th>Service</th><th>Status</th><th>Waiting</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+      </section>
+
+      <section class="card page-view" data-view="patients" hidden>
+        <h1>Patients</h1><p class="sub">Patients with an active queue number.</p>
+        <div class="scroll"><table><thead><tr><th>Number</th><th>Patient</th><th>Service</th><th>Status</th><th>Waiting</th></tr></thead><tbody id="patientRows"></tbody></table></div>
+      </section>
+
+      <section class="card page-view" data-view="records" hidden>
+        <h1>Patient Records</h1><p class="sub">Patient records are not available in this queue-management project.</p>
+        <div class="module-empty"><b>Records module not configured</b><span>This app currently stores queue registration and visit status only.</span></div>
+      </section>
+
+      <section class="card page-view" data-view="lab-results" hidden>
+        <h1>Lab Results</h1><p class="sub">Lab result management is not connected to this project.</p>
+        <div class="module-empty"><b>No lab results available</b><span>Connect a lab-results service to view results here.</span></div>
+      </section>
+
+      <section class="card page-view" data-view="medications" hidden>
+        <h1>Medications</h1><p class="sub">Medication management is not connected to this project.</p>
+        <div class="module-empty"><b>No medication records available</b><span>Connect a medication service to manage prescriptions here.</span></div>
+      </section>
+
+      <section class="card page-view" data-view="appointments" hidden>
+        <h1>Appointments</h1><p class="sub">Appointment scheduling is not connected to this project.</p>
+        <div class="module-empty"><b>Appointments module not configured</b><span>This app currently manages walk-in queues only.</span></div>
+      </section>
+
+      <section class="card page-view" data-view="billing" hidden>
+        <h1>Billing</h1><p class="sub">Billing and payment information are not managed by this project.</p>
+        <div class="module-empty"><b>Billing module not configured</b><span>No billing or payment records are stored in this app.</span></div>
+      </section>
+
+      <section class="card page-view" data-view="reports" hidden>
+        <h1>Reports</h1><p class="sub">Queue totals across all recorded visits.</p>
+        <div class="stats" id="reportStats"></div>
+      </section>
+
+      <section class="card page-view" data-view="audit-trail" hidden>
+        <h1>Audit Trail</h1><p class="sub">Recent queue-agent and staff activity.</p>
+        <div id="auditLog"></div>
+      </section>
+
+      <section class="card page-view" data-view="users" hidden>
+        <h1>Users</h1><p class="sub">Staff account management is not configured in this project.</p>
+        <div class="module-empty"><b>No staff directory available</b><span>Staff access currently uses the configured shared sign-in.</span></div>
+      </section>
+
+      <section class="card page-view" data-view="profile" hidden>
+        <h1>My Profile</h1><p class="sub">Staff profile settings are not configured in this project.</p>
+        <div class="module-empty"><b>Individual profiles are unavailable</b><span>There are no individual staff profiles to view or edit.</span></div>
+      </section>
+
+      <section class="card page-view" data-view="about" hidden>
+        <h1>About HospitalQueueAI</h1><p class="sub">HospitalQueueAI helps staff manage walk-in queues and keep patients informed.</p>
+        <div class="module-empty"><b>HospitalQueueAI</b><span>Manage departments, call patients, and track queue activity from the Dashboard.</span></div>
+      </section>
+    </div>
+  </div>
+</section>
+</main>
+
+<div class="chat hidden" id="chat"><h3 id="chatHead">💬 Staff AI Assistant</h3><div class="msgs" id="msgs"></div>
+<form id="chatForm"><input id="chatInput" placeholder="e.g. status, call next in Cardiology" autocomplete="off"><button class="btn sm">Send</button></form></div>
+
+<script src="app.js"></script>
+<script>
+const KEY = "hq_staff_token";
+const api = makeApi(KEY, () => showLogin());
+let timer = null, chatReady = false;
+
+$("loginForm").onsubmit = async e => {
+  e.preventDefault();
+  try { const r = await api("/api/staff/login", "POST", { password: $("pw").value }); localStorage.setItem(KEY, r.token); showPanel(); }
+  catch (err) { $("lErr").textContent = err.message; }
+};
+$("logout").onclick = () => { localStorage.removeItem(KEY); showLogin(); };
+function showLogin() { clearInterval(timer); $("login").classList.remove("hidden"); ["panel", "chat", "logout"].forEach(i => $(i).classList.add("hidden")); }
+function showPanel() {
+  $("login").classList.add("hidden"); ["panel", "chat", "logout"].forEach(i => $(i).classList.remove("hidden"));
+  if (!chatReady) { initChat(api, "Staff assistant ready. Try “status” or “call next in Pediatrics”.", ["Status", "Call next", "Call next in Pediatrics"]); chatReady = true; window.onChatDone = load; }
+  load(); clearInterval(timer); timer = setInterval(load, 3000);
+}
+function selectPage(page) {
+  const view = document.querySelector(`[data-view="${page}"]`);
+  if (!view) return;
+  document.querySelectorAll(".page-view").forEach(section => {
+    section.hidden = section !== view;
+    section.classList.toggle("active", section === view);
+  });
+  document.querySelectorAll(".nav-item[data-page]").forEach(button => {
+    const active = button.dataset.page === page;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+}
+const act = async (fn) => { try { await fn(); } catch (e) { alert(e.message); } load(); };
+
+async function load() {
+  let o; try { o = await api("/api/staff/overview"); } catch (e) { return; }
+  const labels = { waiting: "Waiting", serving: "Serving", completed: "Completed", cancelled: "Cancelled", no_show: "No-shows" };
+  $("stats").innerHTML = Object.keys(labels).map(k => `<div class="stat"><b>${o.stats[k]}</b><span>${labels[k]}</span></div>`).join("");
+  $("auto").checked = o.autoMode;
+
+  $("depts").innerHTML = o.departments.map(d => `<div class="dept"><div><b>${esc(d.name)}</b><br><small style="color:var(--mut)">${d.waiting} waiting · ${d.serving} serving · ${d.avgMinutes} min avg</small></div>
+    <div class="b"><button class="btn sm" data-call="${esc(d.id)}" ${d.open ? "" : "disabled"}>Call next</button>
+    <button class="btn line sm" data-toggle="${esc(d.id)}" data-open="${d.open}">${d.open ? "Close" : "Open"}</button>
+    <button class="btn line sm" data-del="${esc(d.id)}">Delete</button></div></div>`).join("");
+
+  $("rows").innerHTML = o.tickets.length ? o.tickets.map(t => `<tr><td><b>${esc(t.number)}</b></td><td>${esc(t.name)}</td><td>${esc(t.department)}</td>
+    <td><span class="pill ${esc(t.status)}">${esc(t.status)}</span></td><td>${timeAgo(t.createdAt)}</td><td>
+    ${t.status === "waiting" ? `<button class="btn sm" data-serve="${t.id}">Serve</button> <button class="btn bad sm" data-cancel="${t.id}">Cancel</button>` : ""}
+    ${t.status === "serving" ? `<button class="btn ok sm" data-done="${t.id}">Mark served</button> <button class="btn line sm" data-noshow="${t.id}">No-show</button>` : ""}</td></tr>`).join("")
+    : `<tr><td colspan="6" style="color:var(--mut)">No patients in queue.</td></tr>`;
+
+  $("patientRows").innerHTML = o.tickets.length ? o.tickets.map(t => `<tr><td><b>${esc(t.number)}</b></td><td>${esc(t.name)}</td><td>${esc(t.department)}</td>
+    <td><span class="pill ${esc(t.status)}">${esc(t.status)}</span></td><td>${timeAgo(t.createdAt)}</td></tr>`).join("")
+    : `<tr><td colspan="5" style="color:var(--mut)">No patients currently have an active queue number.</td></tr>`;
+
+  $("log").innerHTML = o.agentLog.map(l => `<div class="note">${esc(l.text)}<small>${timeAgo(l.at)}</small></div>`).join("") || '<p class="sub">No agent activity yet.</p>';
+  $("auditLog").innerHTML = o.agentLog.map(l => `<div class="note">${esc(l.text)}<small>${timeAgo(l.at)}</small></div>`).join("") || '<p class="sub">No activity recorded yet.</p>';
+  const reportLabels = { waiting: "Waiting", serving: "Serving", completed: "Completed", cancelled: "Cancelled", no_show: "No-shows" };
+  $("reportStats").innerHTML = Object.keys(reportLabels).map(k => `<div class="stat"><b>${o.stats[k]}</b><span>${reportLabels[k]}</span></div>`).join("");
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return; const d = b.dataset;
+  if (d.page) selectPage(d.page);
+  else if (d.call) act(async () => { const r = await api("/api/staff/call-next", "POST", { departmentId: d.call }); if (!r.ok) alert(r.message); });
+  else if (d.toggle) act(() => api("/api/staff/departments/" + d.toggle, "PATCH", { open: d.open !== "true" }));
+  else if (d.del) { if (confirm("Delete this department?")) act(() => api("/api/staff/departments/" + d.del, "DELETE")); }
+  else if (d.serve) act(() => api(`/api/staff/tickets/${d.serve}/serve`, "POST"));
+  else if (d.cancel) act(() => api(`/api/staff/tickets/${d.cancel}/cancel`, "POST"));
+  else if (d.done) act(() => api(`/api/staff/tickets/${d.done}/complete`, "POST"));
+  else if (d.noshow) act(() => api(`/api/staff/tickets/${d.noshow}/noshow`, "POST"));
+});
+$("auto").onchange = () => act(() => api("/api/staff/auto", "POST", { on: $("auto").checked }));
+$("addDept").onsubmit = async e => {
+  e.preventDefault(); $("dErr").textContent = "";
+  try { await api("/api/staff/departments", "POST", { name: $("dName").value, avgMinutes: $("dAvg").value }); $("dName").value = $("dAvg").value = ""; load(); }
+  catch (err) { $("dErr").textContent = err.message; }
+};
+if (localStorage.getItem(KEY)) showPanel(); else showLogin();
+</script></body></html>
+
+
+
+
+
+
+
+

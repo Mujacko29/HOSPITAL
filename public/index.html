@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HospitalQueueAI</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><div class="logo">🏥 HospitalQueueAI</div>
+<nav><a class="on" href="index.html">Patient</a><a href="admin.html">Staff</a><button id="logout" class="hidden">Log out</button></nav></header>
+<main>
+<section id="auth" class="auth-card">
+  <div class="auth-accent"></div>
+  <div class="auth-content">
+    <div class="auth-brand">
+      <div class="auth-mark" aria-hidden="true">
+        <svg viewBox="0 0 48 48" fill="none">
+          <path d="M14 8v9a10 10 0 0 0 20 0V8M10 8v5m8-5v5m12-5v5m8-5v5M24 27v4a7 7 0 0 0 14 0v-3" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+          <circle cx="38" cy="25" r="3" fill="currentColor"/>
+        </svg>
+      </div>
+      <h1>HospitalQueueAI</h1>
+      <p class="auth-welcome" id="authWelcome">Welcome back</p>
+      <p class="auth-intro" id="authIntro">Sign in to your account</p>
+    </div>
+    <form id="authForm" class="auth-form">
+      <div id="nameWrap" class="auth-field hidden"><label for="name">FULL NAME</label><div class="input-shell"><input id="name" autocomplete="name" placeholder="Your name"></div></div>
+      <div class="auth-field"><label for="phone">PHONE NUMBER</label><div class="input-shell">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6" y="2.75" width="12" height="18.5" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M10 5.75h4M11 18.5h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <input id="phone" inputmode="tel" autocomplete="tel" placeholder="Enter your phone number">
+      </div></div>
+      <div class="auth-field"><label for="pw">PASSWORD</label><div class="input-shell">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 1 1 8 0v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <input id="pw" type="password" autocomplete="current-password" placeholder="Enter your password">
+        <button class="password-toggle" id="togglePw" type="button" aria-label="Show password" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.7" stroke="currentColor" stroke-width="1.7"/></svg>
+        </button>
+      </div></div>
+      <div class="err" id="authErr"></div>
+      <button class="btn auth-submit" id="authBtn">Sign in</button>
+    </form>
+    <p class="auth-switch-row"><span id="authSwitchPrompt">Don't have an account?</span> <button type="button" class="auth-switch" id="authSwitch">Create account</button></p>
+  </div>
+</section>
+
+<section id="app" class="hidden">
+  <h1 id="hello">Hello</h1><p class="sub">Your queue updates every few seconds.</p>
+  <div class="grid">
+    <div>
+      <div class="card" id="getCard">
+        <h2>Select a hospital service</h2>
+        <label for="dept">Service</label><select id="dept"></select>
+        <div class="err" id="tErr"></div>
+        <button class="btn" id="getBtn" style="width:100%">Get queue number</button>
+      </div>
+      <div class="card hidden" id="ticketCard">
+        <div style="display:flex;justify-content:space-between;align-items:center"><h2 id="tDept" style="margin:0"></h2><span id="tStatus" class="pill"></span></div>
+        <div class="num" id="tNum"></div>
+        <div class="row"><span>Patients ahead</span><b id="tAhead"></b></div>
+        <div class="row"><span>Waiting in this service</span><b id="tTotal"></b></div>
+        <div class="row"><span>Estimated wait</span><b id="tEta"></b></div>
+        <div class="action" id="tAction"></div>
+        <button class="btn line sm" id="cancelBtn" style="margin-top:14px">Cancel my number</button>
+      </div>
+      <div class="card"><h2>Current queues</h2><div id="deptList"></div></div>
+    </div>
+    <div class="card"><h2>Notifications</h2><div id="notes"><p class="sub">Nothing yet.</p></div></div>
+  </div>
+</section>
+</main>
+
+<div class="chat hidden" id="chat"><h3 id="chatHead">💬 Hospital AI Assistant</h3><div class="msgs" id="msgs"></div>
+<form id="chatForm"><input id="chatInput" placeholder="Ask about your queue…" autocomplete="off"><button class="btn sm">Send</button></form></div>
+
+<script src="app.js"></script>
+<script>
+const KEY = "hq_patient_token";
+const api = makeApi(KEY, () => showAuth());
+let mode = "login", timer = null, chatReady = false, lastTurnNote = null;
+
+function setMode(m) {
+  mode = m;
+  $("nameWrap").classList.toggle("hidden", m === "login");
+  $("authWelcome").textContent = m === "login" ? "Welcome back" : "Create your account";
+  $("authIntro").textContent = m === "login" ? "Sign in to your account" : "Register to join the patient queue";
+  $("authBtn").textContent = m === "login" ? "Sign in" : "Create account";
+  $("authSwitchPrompt").textContent = m === "login" ? "Don't have an account?" : "Already have an account?";
+  $("authSwitch").textContent = m === "login" ? "Create account" : "Sign in";
+  $("pw").autocomplete = m === "login" ? "current-password" : "new-password"; $("authErr").textContent = "";
+}
+$("authSwitch").onclick = () => setMode(mode === "login" ? "reg" : "login");
+$("togglePw").onclick = () => {
+  const visible = $("pw").type === "password";
+  $("pw").type = visible ? "text" : "password";
+  $("togglePw").setAttribute("aria-label", visible ? "Hide password" : "Show password");
+  $("togglePw").setAttribute("aria-pressed", String(visible));
+};
+
+$("authForm").onsubmit = async e => {
+  e.preventDefault();
+  try {
+    const body = { phone: $("phone").value, password: $("pw").value };
+    if (mode === "reg") body.name = $("name").value;
+    const r = await api("/api/auth/" + (mode === "login" ? "login" : "register"), "POST", body);
+    localStorage.setItem(KEY, r.token); showApp();
+  } catch (err) { $("authErr").textContent = err.message; }
+};
+$("logout").onclick = () => { localStorage.removeItem(KEY); showAuth(); };
+
+function showAuth() {
+  document.body.classList.add("auth-mode");
+  clearInterval(timer); $("auth").classList.remove("hidden"); $("app").classList.add("hidden");
+  $("chat").classList.add("hidden"); $("logout").classList.add("hidden");
+}
+function showApp() {
+  document.body.classList.remove("auth-mode");
+  $("auth").classList.add("hidden"); $("app").classList.remove("hidden"); $("chat").classList.remove("hidden"); $("logout").classList.remove("hidden");
+  if (!chatReady) { initChat(api, "Hi! I'm your hospital queue assistant. Ask me things like “how long is my wait?”, “what should I do now?” or “what should I bring?”", ["How long is my wait?", "What is my queue status?", "What should I bring?"]); chatReady = true; window.onChatDone = refresh; }
+  refresh(); clearInterval(timer); timer = setInterval(refresh, 3000);
+}
+
+async function refresh() {
+  if (!localStorage.getItem(KEY)) return;
+  try {
+    const [me, ds] = await Promise.all([api("/api/me"), api("/api/departments")]);
+    $("hello").textContent = "Hello, " + me.user.name;
+    const sel = $("dept"), cur = sel.value;
+    sel.innerHTML = ds.departments.map(d => `<option value="${esc(d.id)}" ${d.open ? "" : "disabled"}>${esc(d.name)}${d.open ? "" : " (closed)"}</option>`).join("");
+    if (cur) sel.value = cur;
+    $("deptList").innerHTML = ds.departments.map(d => `<div class="row"><span>${esc(d.name)}</span><b>${d.open ? d.waiting + " waiting · ~" + d.avgMinutes + " min each" : "Closed"}</b></div>`).join("");
+
+    const t = me.ticket, live = t && ["waiting", "serving"].includes(t.status);
+    $("getCard").classList.toggle("hidden", !!live); $("ticketCard").classList.toggle("hidden", !t);
+    if (t) {
+      $("tDept").textContent = t.department; $("tNum").textContent = t.number; $("tNum").className = "num" + (t.status === "serving" ? " turn" : "");
+      $("tStatus").textContent = t.status.replace("_", " "); $("tStatus").className = "pill " + t.status;
+      $("tAhead").textContent = live && t.status === "waiting" ? t.ahead : "—"; $("tTotal").textContent = live ? t.totalWaiting : "—";
+      $("tEta").textContent = t.status === "waiting" ? "about " + t.etaMinutes + " min" : "—";
+      $("tAction").textContent = live ? t.nextAction : "This visit is " + t.status.replace("_", " ") + ". You can get a new number when needed.";
+      $("tAction").className = "action" + (t.status === "serving" ? " turn" : "");
+      $("cancelBtn").classList.toggle("hidden", t.status !== "waiting");
+    }
+    $("notes").innerHTML = me.notifications.length ? me.notifications.map(n => `<div class="note ${esc(n.kind)}">${esc(n.text)}<small>${timeAgo(n.at)}</small></div>`).join("") : '<p class="sub">Nothing yet.</p>';
+    const top = me.notifications[0];
+    if (top && top.kind === "turn" && top.id !== lastTurnNote) { lastTurnNote = top.id; document.title = "🔔 Your turn!"; try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch (e) {} }
+    else if (!top || top.kind !== "turn") document.title = "HospitalQueueAI";
+  } catch (e) { console.error(e); }
+}
+
+$("getBtn").onclick = async () => {
+  $("getBtn").disabled = true; $("tErr").textContent = "";
+  try { await api("/api/tickets", "POST", { departmentId: $("dept").value }); await refresh(); }
+  catch (e) { $("tErr").textContent = e.message; }
+  $("getBtn").disabled = false;
+};
+$("cancelBtn").onclick = async () => { if (confirm("Cancel your queue number?")) { try { await api("/api/tickets/cancel", "POST"); refresh(); } catch (e) { alert(e.message); } } };
+
+if (localStorage.getItem(KEY)) showApp(); else showAuth();
+</script></body></html>
