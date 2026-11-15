@@ -219,6 +219,11 @@ app.get("/api/staff/patients", needStaff, (req, res) => {
   res.json({ tickets });
 });
 
+app.get("/api/staff/users", needStaff, (_req, res) => {
+  const users = db.users.slice().reverse().map(user => ({ name: user.name, phone: user.phone }));
+  res.json({ users });
+});
+
 app.post("/api/staff/call-next", needStaff, (req, res) => res.json(callNext((req.body || {}).departmentId, "Staff")));
 app.post("/api/staff/tickets/:id/:action", needStaff, (req, res) => {
   const t = findTicket(req.params.id), a = req.params.action;
