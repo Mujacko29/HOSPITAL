@@ -34,7 +34,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}th{text-align:left;padd
 .scroll{overflow-x:auto}
 .dept{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .dept .b{display:flex;gap:6px;flex-wrap:wrap}
-#editDeptDialog{border:1px solid var(--line);border-radius:12px;padding:24px;width:min(420px,calc(100vw - 32px));box-shadow:0 10px 40px rgba(0,0,0,.2)}
+#editDeptDialog{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;padding:24px;width:min(420px,calc(100vw - 32px));box-shadow:0 10px 40px rgba(0,0,0,.2)}
 #editDeptDialog::backdrop{background:rgba(15,23,42,.45)}
 #editDeptDialog form{display:grid;gap:6px}
 #editDeptDialog h2{margin-bottom:8px}
