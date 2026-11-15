@@ -12,7 +12,7 @@ const FILE = path.join(__dirname, "data.json");
 // ---------- persistent "database" (JSON file, survives restarts) ----------
 let db = {
   users: [], tickets: [], notifications: [], agentLog: [], sessions: {},
-  autoMode: true, nextTicketId: 1,
+  autoMode: true, nextTicketId: 1, ticketCounters: {},
   departments: [
     { id: "gen", name: "General Consultation", prefix: "G", avgMinutes: 10, open: true },
     { id: "ped", name: "Pediatrics", prefix: "P", avgMinutes: 12, open: true },
@@ -21,6 +21,7 @@ let db = {
   ],
 };
 if (fs.existsSync(FILE)) try { db = { ...db, ...JSON.parse(fs.readFileSync(FILE, "utf8")) }; } catch (e) { console.error("data.json unreadable, starting fresh"); }
+if (!db.ticketCounters || typeof db.ticketCounters !== "object" || Array.isArray(db.ticketCounters)) db.ticketCounters = {};
 const save = () => fs.writeFileSync(FILE, JSON.stringify(db, null, 1));
 const now = () => new Date().toISOString();
 const uid = () => crypto.randomBytes(16).toString("hex");
@@ -36,7 +37,12 @@ const findTicket = id => db.tickets.find(t => t.id === +id);
 function notify(userId, text, kind = "info") {
   if (userId) db.notifications.push({ id: uid(), userId, text, kind, at: now(), read: false });
 }
-function log(text) { db.agentLog.unshift({ at: now(), text }); db.agentLog = db.agentLog.slice(0, 60); }
+function log(text, userId) {
+  const entry = { at: now(), text };
+  if (userId) entry.userId = userId;
+  db.agentLog.unshift(entry);
+  db.agentLog = db.agentLog.slice(0, 60);
+}
 
 function position(t) {
   const d = dept(t.deptId);
@@ -131,12 +137,14 @@ app.post("/api/tickets", needUser, (req, res) => {
   if (!d.open) return res.status(400).json({ error: `${d.name} is closed right now.` });
   if (active(req.user.id)) return res.status(409).json({ error: "You already have an active queue number. Cancel it first to switch service." });
   const id = db.nextTicketId++;
-  const n = db.tickets.filter(t => t.deptId === d.id).length + 1;
+  const previousCount = Math.max(Number(db.ticketCounters[d.id]) || 0, db.tickets.filter(t => t.deptId === d.id).length);
+  const n = previousCount + 1;
+  db.ticketCounters[d.id] = n;
   const t = { id, number: `${d.prefix}-${String(n).padStart(3, "0")}`, deptId: d.id, userId: req.user.id, name: req.user.name,
               status: "waiting", createdAt: now(), calledAt: null, doneAt: null, flags: {} };
   db.tickets.push(t);
   notify(req.user.id, `You're registered for ${d.name}. Your number is ${t.number}.`, "ok");
-  log(`${t.number} (${t.name}) joined ${d.name}.`);
+  log(`${t.number} (${t.name}) joined ${d.name}.`, req.user.id);
   save();
   res.status(201).json({ ticket: publicTicket(t) });
 });
@@ -155,7 +163,7 @@ app.post("/api/tickets/cancel", needUser, (req, res) => {
   const t = active(req.user.id);
   if (!t || t.status !== "waiting") return res.status(400).json({ error: "You have no waiting ticket to cancel." });
   t.status = "cancelled"; t.doneAt = now();
-  log(`${t.number} cancelled by the patient.`); save();
+  log(`${t.number} cancelled by the patient.`, t.userId); save();
   res.json({ ok: true });
 });
 
@@ -168,7 +176,7 @@ function callNext(deptId, by) {
   if (!t) return { ok: false, message: `No one is waiting in ${d.name}.` };
   t.status = "serving"; t.calledAt = now();
   notify(t.userId, `It's your turn! Please go to the ${d.name} counter. (${t.number})`, "turn");
-  log(`${by} called ${t.number} (${t.name}) to ${d.name}.`);
+  log(`${by} called ${t.number} (${t.name}) to ${d.name}.`, t.userId);
   save();
   return { ok: true, message: `${t.number} ${t.name} is now being served in ${d.name}.`, ticket: t };
 }
@@ -180,7 +188,7 @@ function finish(t, status) {
   }
   t.status = status; t.doneAt = now();
   notify(t.userId, status === "completed" ? "Your visit is marked as done. Thank you!" : "Your queue number was closed because you didn't arrive. Register again if you still need service.", status === "completed" ? "ok" : "warn");
-  log(`${t.number} marked ${status}.`); save();
+  log(`${t.number} marked ${status}.`, t.userId); save();
 }
 
 app.get("/api/staff/overview", needStaff, (_req, res) => {
@@ -190,7 +198,7 @@ app.get("/api/staff/overview", needStaff, (_req, res) => {
     tickets: db.tickets.filter(t => ["waiting", "serving"].includes(t.status)).sort((a, b) => a.id - b.id)
       .map(t => ({ id: t.id, number: t.number, name: t.name, deptId: t.deptId, department: dept(t.deptId)?.name, status: t.status, createdAt: t.createdAt })),
     stats: ["waiting", "serving", "completed", "cancelled", "no_show"].reduce((o, s) => (o[s] = db.tickets.filter(t => t.status === s).length, o), {}),
-    agentLog: db.agentLog.slice(0, 25),
+    agentLog: db.agentLog.slice(0, 25).map(({ at, text }) => ({ at, text })),
   });
 });
 
@@ -227,10 +235,34 @@ app.get("/api/staff/users", needStaff, (_req, res) => {
 app.delete("/api/staff/users/:id", needStaff, (req, res) => {
   const user = db.users.find(candidate => candidate.id === req.params.id);
   if (!user) return res.status(404).json({ error: "Patient account not found." });
-  if (db.tickets.some(ticket => ticket.userId === user.id && ["waiting", "serving"].includes(ticket.status))) {
+  const userTickets = db.tickets.filter(ticket => ticket.userId === user.id);
+  if (userTickets.some(ticket => ["waiting", "serving"].includes(ticket.status))) {
     return res.status(409).json({ error: "Resolve this patient's active queue ticket before deleting the account." });
   }
 
+  for (const deptId of new Set(userTickets.map(ticket => ticket.deptId))) {
+    db.ticketCounters[deptId] = Math.max(
+      Number(db.ticketCounters[deptId]) || 0,
+      db.tickets.filter(ticket => ticket.deptId === deptId).length
+    );
+  }
+  const userTicketNumbers = new Set(userTickets.map(ticket => ticket.number));
+  const uniqueTicketNumbers = [...userTicketNumbers].filter(number =>
+    !db.tickets.some(ticket => ticket.userId !== user.id && ticket.number === number)
+  );
+  const ticketPatterns = uniqueTicketNumbers.map(number =>
+    new RegExp(`\\b${number.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`)
+  );
+  const unambiguousTickets = userTickets.filter(ticket =>
+    !db.tickets.some(other => other.userId !== user.id && other.number === ticket.number && other.name === ticket.name)
+  );
+  db.agentLog = db.agentLog.filter(entry => {
+    if (entry.userId === user.id) return false;
+    if (typeof entry.text !== "string") return true;
+    return !ticketPatterns.some(pattern => pattern.test(entry.text)) &&
+      !unambiguousTickets.some(ticket => entry.text.includes(ticket.number) && entry.text.includes(ticket.name));
+  });
+  db.tickets = db.tickets.filter(ticket => ticket.userId !== user.id);
   db.users = db.users.filter(candidate => candidate.id !== user.id);
   db.notifications = db.notifications.filter(notification => notification.userId !== user.id);
   Object.entries(db.sessions).forEach(([token, session]) => {
@@ -248,11 +280,11 @@ app.post("/api/staff/tickets/:id/:action", needStaff, (req, res) => {
     if (t.status !== "waiting") return res.status(400).json({ error: `${t.number} is ${t.status}.` });
     if (servingIn(t.deptId).length) return res.status(409).json({ error: "Someone is already being served in this department." });
     t.status = "serving"; t.calledAt = now(); notify(t.userId, `It's your turn! Please go to the ${dept(t.deptId).name} counter. (${t.number})`, "turn");
-    log(`Staff served ${t.number} directly.`); save(); return res.json({ ok: true });
+    log(`Staff served ${t.number} directly.`, t.userId); save(); return res.json({ ok: true });
   }
   if (a === "complete" && t.status === "serving") { finish(t, "completed"); return res.json({ ok: true }); }
   if (a === "noshow" && t.status === "serving") { finish(t, "no_show"); return res.json({ ok: true }); }
-  if (a === "cancel" && t.status === "waiting") { t.status = "cancelled"; t.doneAt = now(); notify(t.userId, "Your queue number was cancelled by staff.", "warn"); log(`Staff cancelled ${t.number}.`); save(); return res.json({ ok: true }); }
+  if (a === "cancel" && t.status === "waiting") { t.status = "cancelled"; t.doneAt = now(); notify(t.userId, "Your queue number was cancelled by staff.", "warn"); log(`Staff cancelled ${t.number}.`, t.userId); save(); return res.json({ ok: true }); }
   res.status(400).json({ error: `Cannot ${a} a ${t.status} ticket.` });
 });
 
@@ -340,7 +372,7 @@ function agentTick() {
       if (i <= 2 && !t.flags.approaching) {
         t.flags.approaching = true; changed = true;
         notify(t.userId, i === 0 ? `You're next in ${d.name}. Please stay near the counter.` : `${i} patient(s) ahead of you in ${d.name}. Please move to the waiting area.`, "soon");
-        log(`Notified ${t.number}: turn approaching (${i} ahead).`);
+        log(`Notified ${t.number}: turn approaching (${i} ahead).`, t.userId);
       }
     });
     // step 2: keep the department moving (auto-call when the counter is free)
@@ -350,7 +382,7 @@ function agentTick() {
     if (waiting.length < 5) d.overloadLogged = false;
     // step 4: patient called but not finished for a long time
     servingIn(d.id).forEach(t => {
-      if (t.calledAt && Date.now() - new Date(t.calledAt) > d.avgMinutes * 3 * 60000 && !t.flags.slow) { t.flags.slow = true; log(`${t.number} has been serving for 3x the average time.`); changed = true; }
+      if (t.calledAt && Date.now() - new Date(t.calledAt) > d.avgMinutes * 3 * 60000 && !t.flags.slow) { t.flags.slow = true; log(`${t.number} has been serving for 3x the average time.`, t.userId); changed = true; }
     });
   }
   if (changed) save();

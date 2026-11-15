@@ -132,7 +132,7 @@
       </section>
 
       <section class="card page-view" data-view="users" hidden>
-        <h1>Patient accounts</h1><p class="sub">Delete accounts when needed. Past visit history is retained.</p>
+        <h1>Patient accounts</h1><p class="sub">Deleting an account permanently removes its past visit history and notifications.</p>
         <p id="userStatus" class="patient-search-status" aria-live="polite"></p>
         <div class="err" id="userErr" role="alert"></div>
         <div class="scroll"><table><thead><tr><th>Name</th><th>Phone</th><th>Actions</th></tr></thead><tbody id="userRows"></tbody></table></div>
@@ -286,7 +286,7 @@ document.addEventListener("click", e => {
 
   if (d.page) selectPage(d.page);
   else if (d.deleteUser) {
-    if (confirm(`Delete the account for ${b.dataset.userName}? Past visit history will be kept.`)) {
+    if (confirm(`Permanently delete the account for ${b.dataset.userName} and all past visit history? This cannot be undone. Active queue tickets must be resolved first.`)) {
       act(async () => {
         await api(`/api/staff/users/${encodeURIComponent(d.deleteUser)}`, "DELETE");
         await loadUsers();
