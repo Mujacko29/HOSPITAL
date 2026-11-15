@@ -125,7 +125,7 @@ function showAuth() {
 function showApp() {
   document.body.classList.remove("auth-mode");
   $("auth").classList.add("hidden"); $("app").classList.remove("hidden"); $("chat").classList.remove("hidden"); $("logout").classList.remove("hidden");
-  if (!chatReady) { initChat(api, "Hi! I'm your hospital queue assistant. I can help with your queue, what to bring, and common hospital questions.", ["How do I get a queue number?", "How long is my wait?", "What should I bring?", "What if I miss my turn?", "What should I do in an emergency?"]); chatReady = true; window.onChatDone = refresh; }
+  if (!chatReady) { initChat(api, "Hi! I'm your hospital queue assistant. Ask me things like “how long is my wait?”, “what should I do now?” or “what should I bring?”", ["How long is my wait?", "What is my queue status?", "What should I bring?"]); chatReady = true; window.onChatDone = refresh; }
   refresh(); clearInterval(timer); timer = setInterval(refresh, 3000);
 }
 
