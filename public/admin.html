@@ -290,6 +290,7 @@ document.addEventListener("click", e => {
       act(async () => {
         await api(`/api/staff/users/${encodeURIComponent(d.deleteUser)}`, "DELETE");
         await loadUsers();
+        await loadPatients();
       });
     }
   }

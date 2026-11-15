@@ -44,6 +44,56 @@ function log(text, userId) {
   db.agentLog = db.agentLog.slice(0, 60);
 }
 
+function removePatientData(userId) {
+  const userTickets = db.tickets.filter(ticket => ticket.userId === userId);
+  for (const deptId of new Set(userTickets.map(ticket => ticket.deptId))) {
+    db.ticketCounters[deptId] = Math.max(
+      Number(db.ticketCounters[deptId]) || 0,
+      db.tickets.filter(ticket => ticket.deptId === deptId).length
+    );
+  }
+
+  const userTicketNumbers = new Set(userTickets.map(ticket => ticket.number));
+  const uniqueTicketNumbers = [...userTicketNumbers].filter(number =>
+    !db.tickets.some(ticket => ticket.userId !== userId && ticket.number === number)
+  );
+  const ticketPatterns = uniqueTicketNumbers.map(number =>
+    new RegExp(`\\b${number.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`)
+  );
+  const unambiguousTickets = userTickets.filter(ticket =>
+    !db.tickets.some(other => other.userId !== userId && other.number === ticket.number && other.name === ticket.name)
+  );
+  db.agentLog = db.agentLog.filter(entry => {
+    if (entry.userId === userId) return false;
+    if (typeof entry.text !== "string") return true;
+    return !ticketPatterns.some(pattern => pattern.test(entry.text)) &&
+      !unambiguousTickets.some(ticket => entry.text.includes(ticket.number) && entry.text.includes(ticket.name));
+  });
+  db.tickets = db.tickets.filter(ticket => ticket.userId !== userId);
+  db.notifications = db.notifications.filter(notification => notification.userId !== userId);
+  Object.entries(db.sessions).forEach(([token, session]) => {
+    if (session.role === "patient" && session.userId === userId) delete db.sessions[token];
+  });
+}
+
+const registeredUserIds = new Set(db.users.map(user => user.id));
+const orphanedUserIds = new Set();
+db.tickets.forEach(ticket => {
+  if (ticket.userId && !registeredUserIds.has(ticket.userId)) orphanedUserIds.add(ticket.userId);
+});
+db.notifications.forEach(notification => {
+  if (notification.userId && !registeredUserIds.has(notification.userId)) orphanedUserIds.add(notification.userId);
+});
+Object.values(db.sessions).forEach(session => {
+  if (session && session.role === "patient" && session.userId && !registeredUserIds.has(session.userId)) {
+    orphanedUserIds.add(session.userId);
+  }
+});
+if (orphanedUserIds.size) {
+  orphanedUserIds.forEach(removePatientData);
+  save();
+}
+
 function position(t) {
   const d = dept(t.deptId);
   if (t.status !== "waiting") return { ahead: 0, etaMinutes: 0 };
@@ -240,34 +290,8 @@ app.delete("/api/staff/users/:id", needStaff, (req, res) => {
     return res.status(409).json({ error: "Resolve this patient's active queue ticket before deleting the account." });
   }
 
-  for (const deptId of new Set(userTickets.map(ticket => ticket.deptId))) {
-    db.ticketCounters[deptId] = Math.max(
-      Number(db.ticketCounters[deptId]) || 0,
-      db.tickets.filter(ticket => ticket.deptId === deptId).length
-    );
-  }
-  const userTicketNumbers = new Set(userTickets.map(ticket => ticket.number));
-  const uniqueTicketNumbers = [...userTicketNumbers].filter(number =>
-    !db.tickets.some(ticket => ticket.userId !== user.id && ticket.number === number)
-  );
-  const ticketPatterns = uniqueTicketNumbers.map(number =>
-    new RegExp(`\\b${number.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`)
-  );
-  const unambiguousTickets = userTickets.filter(ticket =>
-    !db.tickets.some(other => other.userId !== user.id && other.number === ticket.number && other.name === ticket.name)
-  );
-  db.agentLog = db.agentLog.filter(entry => {
-    if (entry.userId === user.id) return false;
-    if (typeof entry.text !== "string") return true;
-    return !ticketPatterns.some(pattern => pattern.test(entry.text)) &&
-      !unambiguousTickets.some(ticket => entry.text.includes(ticket.number) && entry.text.includes(ticket.name));
-  });
-  db.tickets = db.tickets.filter(ticket => ticket.userId !== user.id);
   db.users = db.users.filter(candidate => candidate.id !== user.id);
-  db.notifications = db.notifications.filter(notification => notification.userId !== user.id);
-  Object.entries(db.sessions).forEach(([token, session]) => {
-    if (session.role === "patient" && session.userId === user.id) delete db.sessions[token];
-  });
+  removePatientData(user.id);
   save();
   res.json({ ok: true });
 });
