@@ -100,6 +100,8 @@ body.auth-mode>main{max-width:none;min-height:100vh;margin:0;padding:32px 20px;d
 .auth-switch-row{text-align:center;color:var(--mut);font-size:15px;margin-top:30px}
 .auth-switch{padding:0;border:0;background:transparent;color:var(--teal);font:inherit;font-weight:700;cursor:pointer}
 .auth-switch:hover{text-decoration:underline}
+.auth-staff-row{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.auth-staff-row a{text-decoration:none}
 @media(max-width:900px){.admin-shell{flex-direction:column;min-height:auto}.sidebar{width:100%;border-right:0;border-bottom:1px solid #dfe3e7}.workspace{padding:10px}}
 @media(max-width:800px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.chat{position:static;width:auto;margin:0 18px 18px}main{padding-bottom:20px}}
 @media(max-width:560px){body.auth-mode>main{padding:20px 14px}.auth-card{border-radius:23px}.auth-content{padding:30px 22px 28px}.auth-brand{margin-bottom:26px}.auth-mark{width:76px;height:76px;border-radius:23px;margin-bottom:15px}.auth-mark svg{width:42px;height:42px}.auth-brand h1{font-size:26px;margin-bottom:14px}.auth-welcome{font-size:18px}.auth-intro{font-size:16px}.input-shell{height:54px}.auth-switch-row{margin-top:24px}}
