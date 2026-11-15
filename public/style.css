@@ -110,3 +110,50 @@ body.auth-mode>main{max-width:none;min-height:100vh;margin:0;padding:32px 20px;d
 @media(max-width:900px){.admin-shell{flex-direction:column;min-height:auto}.sidebar{width:100%;border-right:0;border-bottom:1px solid #dfe3e7}.workspace{padding:10px}}
 @media(max-width:800px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.chat{position:static;width:auto;margin:0 18px 18px}main{padding-bottom:20px}}
 @media(max-width:560px){body.auth-mode>main{padding:20px 14px}.auth-card{border-radius:23px}.auth-content{padding:30px 22px 28px}.auth-brand{margin-bottom:26px}.auth-mark{width:76px;height:76px;border-radius:23px;margin-bottom:15px}.auth-mark svg{width:42px;height:42px}.auth-brand h1{font-size:26px;margin-bottom:14px}.auth-welcome{font-size:18px}.auth-intro{font-size:16px}.input-shell{height:54px}.auth-switch-row{margin-top:24px}}
+
+html{scroll-behavior:smooth}
+body{line-height:1.5}
+header{position:sticky;top:0;z-index:10;box-shadow:0 4px 18px rgba(18,48,58,.12)}
+.logo{letter-spacing:-.35px}
+header nav{display:flex;align-items:center;gap:6px}
+header nav a,header nav button{margin-left:0;transition:background-color .18s,transform .18s,box-shadow .18s}
+header nav a:hover,header nav button:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(18,48,58,.16)}
+main{max-width:1280px;margin:32px auto}
+h1{letter-spacing:-.025em;line-height:1.2}
+h2{line-height:1.3}
+.sub{line-height:1.55}
+.grid{gap:20px;align-items:start}
+.card{border-radius:16px;box-shadow:0 6px 20px rgba(18,48,58,.05);transition:box-shadow .18s,transform .18s}
+.card:not(.queue-panel):hover{box-shadow:0 9px 26px rgba(18,48,58,.09)}
+input,select{transition:border-color .15s,box-shadow .15s}
+input:hover,select:hover{border-color:var(--mut)}
+.btn{transition:background-color .18s,transform .18s,box-shadow .18s}
+.btn:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(18,48,58,.16)}
+.btn:active{transform:translateY(0)}
+.stats{gap:14px}
+.stat{border-radius:14px;border-top:3px solid var(--teal);box-shadow:0 4px 14px rgba(18,48,58,.04);transition:transform .18s,box-shadow .18s}
+.stat:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(18,48,58,.08)}
+table{font-variant-numeric:tabular-nums}
+th{font-weight:700}
+td{vertical-align:middle}
+tbody tr{transition:background-color .15s}
+tbody tr:hover{background:var(--bg)}
+.dept{padding:14px 0}
+.admin-shell{min-width:0}
+.sidebar{width:270px;flex:none}
+.dashboard-main,.workspace{min-width:0}
+.nav-item{transition:background-color .16s,transform .16s}
+.nav-item:hover{transform:translateX(2px)}
+.nav-item.active{border-left:3px solid var(--teal)}
+.chat{width:min(380px,calc(100vw - 32px));border-radius:16px}
+.chat h3{padding:14px 16px}
+.msgs{height:300px;padding:14px}
+.m{border-radius:12px}
+.m.bot{border-bottom-left-radius:4px}
+.m.user{border-bottom-right-radius:4px}
+.chat form input{min-width:0}
+.chat form button{flex:none}
+@media(max-width:900px){.sidebar{width:100%}.dashboard-main{padding:14px}}
+@media(max-width:800px){.chat{width:auto}}
+@media(max-width:560px){header{padding:12px 16px}.logo{font-size:19px}main{padding-left:14px;padding-right:14px}.stats{gap:9px}.stat{padding:12px}.workspace{padding:8px}.sidebar{padding:18px 12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card,.btn,header nav a,header nav button,.stat,.nav-item,tbody tr{transition:none}.card:not(.queue-panel):hover,.btn:not(:disabled):hover,.stat:hover,.nav-item:hover{transform:none}}
