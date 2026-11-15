@@ -3,7 +3,7 @@
 <title>HospitalQueueAI</title><link rel="stylesheet" href="style.css"></head>
 <body>
 <header><div class="logo">🏥 HospitalQueueAI</div>
-<nav><a class="on" href="index.html">Patient</a><a href="admin.html">Staff</a><button id="logout" class="hidden">Log out</button></nav></header>
+<nav><a class="on" href="index.html">Patient</a><button id="logout" class="hidden">Log out</button></nav></header>
 <main>
 <section id="auth" class="auth-card">
   <div class="auth-accent"></div>
@@ -79,6 +79,7 @@
 <script src="app.js"></script>
 <script>
 const KEY = "hq_patient_token";
+const STAFF_KEY = "hq_staff_token";
 const api = makeApi(KEY, () => showAuth());
 let mode = "login", timer = null, chatReady = false, lastTurnNote = null;
 
@@ -116,6 +117,7 @@ $("logout").onclick = async () => {
 };
 
 function showAuth() {
+  localStorage.removeItem(KEY);
   document.body.classList.add("auth-mode");
   clearInterval(timer); $("auth").classList.remove("hidden"); $("app").classList.add("hidden");
   $("chat").classList.add("hidden"); $("logout").classList.add("hidden");
@@ -163,5 +165,10 @@ $("getBtn").onclick = async () => {
 };
 $("cancelBtn").onclick = async () => { if (confirm("Cancel your queue number?")) { try { await api("/api/tickets/cancel", "POST"); refresh(); } catch (e) { alert(e.message); } } };
 
-if (localStorage.getItem(KEY)) showApp(); else showAuth();
+if (localStorage.getItem(KEY)) {
+  localStorage.removeItem(STAFF_KEY);
+  showApp();
+} else if (localStorage.getItem(STAFF_KEY)) {
+  location.replace("admin.html");
+} else showAuth();
 </script></body></html>

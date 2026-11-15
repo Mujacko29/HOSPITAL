@@ -3,7 +3,7 @@
 <title>HospitalQueueAI - Staff</title><link rel="stylesheet" href="style.css"></head>
 <body>
 <header><div class="logo">🏥 HospitalQueueAI · Staff</div>
-<nav><a href="index.html">Patient</a><a class="on" href="admin.html">Staff</a><button id="logout" class="hidden">Log out</button></nav></header>
+<nav><a class="on" href="admin.html">Staff</a><button id="logout" class="hidden">Log out</button></nav></header>
 <main>
 <section id="login" class="card" style="max-width:420px;margin:20px auto">
   <h1>Staff login</h1><p class="sub">Only hospital staff can manage the queue.</p>
@@ -173,13 +173,14 @@
 <script src="app.js"></script>
 <script>
 const KEY = "hq_staff_token";
+const PATIENT_KEY = "hq_patient_token";
 const api = makeApi(KEY, () => showLogin());
 let timer = null, chatReady = false;
 let editingDepartmentId = null;
 
 $("loginForm").onsubmit = async e => {
   e.preventDefault();
-  try { const r = await api("/api/staff/login", "POST", { password: $("pw").value }); localStorage.setItem(KEY, r.token); showPanel(); }
+  try { const r = await api("/api/staff/login", "POST", { password: $("pw").value }); localStorage.removeItem(PATIENT_KEY); localStorage.setItem(KEY, r.token); showPanel(); }
   catch (err) { $("lErr").textContent = err.message; }
 };
 $("logout").onclick = async () => {
@@ -187,7 +188,7 @@ $("logout").onclick = async () => {
   catch (err) { alert("The local sign-out completed, but the server session could not be cleared: " + err.message); }
   finally { localStorage.removeItem(KEY); showLogin(); }
 };
-function showLogin() { clearInterval(timer); $("login").classList.remove("hidden"); ["panel", "chat", "logout"].forEach(i => $(i).classList.add("hidden")); }
+function showLogin() { localStorage.removeItem(KEY); clearInterval(timer); $("login").classList.remove("hidden"); ["panel", "chat", "logout"].forEach(i => $(i).classList.add("hidden")); }
 function showPanel() {
   $("login").classList.add("hidden"); ["panel", "chat", "logout"].forEach(i => $(i).classList.remove("hidden"));
   if (!chatReady) { initChat(api, "Staff assistant ready. Try “status” or “call next in Pediatrics”.", ["Status", "Call next", "Call next in Pediatrics"]); chatReady = true; window.onChatDone = load; }
@@ -343,7 +344,10 @@ $("addDept").onsubmit = async e => {
   try { await api("/api/staff/departments", "POST", { name: $("dName").value, avgMinutes: $("dAvg").value }); $("dName").value = $("dAvg").value = ""; load(); }
   catch (err) { $("dErr").textContent = err.message; }
 };
-if (localStorage.getItem(KEY)) showPanel(); else showLogin();
+if (localStorage.getItem(PATIENT_KEY)) {
+  localStorage.removeItem(KEY);
+  location.replace("index.html");
+} else if (localStorage.getItem(KEY)) showPanel(); else showLogin();
 </script></body></html>
 
 
