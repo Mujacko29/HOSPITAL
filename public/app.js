@@ -56,7 +56,26 @@ function initChat(api, greeting, suggestions) {
     e.preventDefault();
     const text = input.value.trim(); if (!text) return;
     add(text, "user"); input.value = "";
-    try { add((await api("/api/chat", "POST", { message: text })).reply, "bot"); window.onChatDone && window.onChatDone(); }
-    catch (err) { add(err.message, "bot"); }
+    const typing = document.createElement("div");
+    typing.className = "m bot typing-indicator";
+    typing.setAttribute("role", "status");
+    typing.setAttribute("aria-label", "Hospital AI Assistant is typing");
+    for (let i = 0; i < 3; i++) typing.appendChild(document.createElement("span"));
+    msgs.appendChild(typing);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    const minDelay = new Promise(resolve => setTimeout(resolve, 1000));
+    let reply, succeeded = false;
+    try {
+      const [data] = await Promise.all([api("/api/chat", "POST", { message: text }), minDelay]);
+      reply = data.reply;
+      succeeded = true;
+    } catch (err) {
+      await minDelay;
+      reply = err.message;
+    }
+    typing.remove();
+    add(reply, "bot");
+    if (succeeded) window.onChatDone && window.onChatDone();
   };
 }
