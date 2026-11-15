@@ -1,6 +1,27 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const timeAgo = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago"; };
+const formatDuration = value => {
+  const numeric = Number(value);
+  const total = Number.isFinite(numeric) ? Math.max(0, Math.round(numeric)) : 0;
+  if (!total) return "less than a minute";
+  const parts = [
+    [Math.floor(total / 1440), "day"],
+    [Math.floor((total % 1440) / 60), "hour"],
+    [total % 60, "minute"],
+  ].filter(([count]) => count > 0);
+  return parts.slice(0, 2).map(([count, unit]) => `${count} ${unit}${count === 1 ? "" : "s"}`).join(" ");
+};
+const timeAgo = iso => {
+  const timestamp = new Date(iso).getTime();
+  if (!Number.isFinite(timestamp)) return "unknown time";
+  const minutes = Math.floor((Date.now() - timestamp) / 60000);
+  if (minutes < 1) return "just now";
+  const days = Math.floor(minutes / 1440);
+  if (days) return `${days} day${days === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+};
 
 function makeApi(tokenKey, onAuthFail) {
   return async (url, method = "GET", body) => {

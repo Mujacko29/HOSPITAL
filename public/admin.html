@@ -298,7 +298,7 @@ async function load() {
   $("stats").innerHTML = Object.keys(labels).map(k => `<div class="stat"><b>${o.stats[k]}</b><span>${labels[k]}</span></div>`).join("");
   $("auto").checked = o.autoMode;
 
-  $("depts").innerHTML = o.departments.map(d => `<div class="dept"><div><b>${esc(d.name)}</b><br><small style="color:var(--mut)">${d.waiting} waiting · ${d.serving} serving · ${d.avgMinutes} min avg</small></div>
+  $("depts").innerHTML = o.departments.map(d => `<div class="dept"><div><b>${esc(d.name)}</b><br><small style="color:var(--mut)">${d.waiting} waiting · ${d.serving} serving · ${formatDuration(d.avgMinutes)} avg</small></div>
   <div class="b"><button class="btn sm" data-call="${esc(d.id)}" ${d.open ? "" : "disabled"}>Call next</button>
   <button class="btn line sm" data-toggle="${esc(d.id)}" data-open="${d.open}">${d.open ? "Close" : "Open"}</button>
   <button class="btn line sm" data-edit="${esc(d.id)}" data-name="${esc(d.name)}" data-avg="${esc(d.avgMinutes)}">Edit</button>

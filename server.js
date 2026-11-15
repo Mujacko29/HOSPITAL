@@ -25,6 +25,17 @@ if (!db.ticketCounters || typeof db.ticketCounters !== "object" || Array.isArray
 const save = () => fs.writeFileSync(FILE, JSON.stringify(db, null, 1));
 const now = () => new Date().toISOString();
 const uid = () => crypto.randomBytes(16).toString("hex");
+const formatDuration = value => {
+  const numeric = Number(value);
+  const total = Number.isFinite(numeric) ? Math.max(0, Math.round(numeric)) : 0;
+  if (!total) return "less than a minute";
+  const parts = [
+    [Math.floor(total / 1440), "day"],
+    [Math.floor((total % 1440) / 60), "hour"],
+    [total % 60, "minute"],
+  ].filter(([count]) => count > 0);
+  return parts.slice(0, 2).map(([count, unit]) => `${count} ${unit}${count === 1 ? "" : "s"}`).join(" ");
+};
 
 // ---------- helpers ----------
 const hash = (pw, salt) => crypto.scryptSync(pw, salt, 32).toString("hex");
@@ -110,7 +121,7 @@ function nextAction(t) {
   if (!d.open) return `${d.name} is currently closed. Please ask the front desk for help.`;
   if (p.ahead === 0) return `You're next. Stay at the ${d.name} waiting area so you don't miss your call.`;
   if (p.ahead <= 2) return `Almost there: ${p.ahead} patient(s) ahead. Move to the ${d.name} waiting area and have your ID ready.`;
-  return `About ${p.etaMinutes} min to go. You can rest or get water, but return when you're ${2} patients away. I'll notify you.`;
+  return `About ${formatDuration(p.etaMinutes)} to go. You can rest or get water, but return when you're ${2} patients away. I'll notify you.`;
 }
 
 function publicTicket(t) {
@@ -342,13 +353,13 @@ function builtIn(text, ticket, staff) {
   if (staff) {
     const target = db.departments.find(d => m.includes(d.name.toLowerCase())) || db.departments.find(d => waitingIn(d.id).length && !servingIn(d.id).length);
     if (/call|next/.test(m)) return target ? callNext(target.id, "Assistant").message : "There is no department that needs a call right now.";
-    if (/status|queue|analy|busy/.test(m)) return db.departments.map(d => `${d.name}: ${waitingIn(d.id).length} waiting, ${servingIn(d.id).length} serving, avg ${d.avgMinutes} min`).join("\n");
+    if (/status|queue|analy|busy/.test(m)) return db.departments.map(d => `${d.name}: ${waitingIn(d.id).length} waiting, ${servingIn(d.id).length} serving, avg ${formatDuration(d.avgMinutes)}`).join("\n");
     return "Staff commands: 'status', 'call next', or 'call next in Cardiology'.";
   }
   if (/my|wait|long|ahead|turn|position|status|how many|number/.test(m) && !/what documents/.test(m)) {
     if (!ticket) return "You don't have an active queue number yet. Pick a service and tap Get queue number.";
     const p = publicTicket(ticket);
-    return `Your number is ${p.number} (${p.department}), status: ${p.status}. ${p.status === "waiting" ? `${p.ahead} patient(s) ahead, estimated wait about ${p.etaMinutes} minutes. ` : ""}${p.nextAction}`;
+    return `Your number is ${p.number} (${p.department}), status: ${p.status}. ${p.status === "waiting" ? `${p.ahead} patient(s) ahead, estimated wait: ${formatDuration(p.etaMinutes)}. ` : ""}${p.nextAction}`;
   }
   if (/what (should|do) i do|next step|what now/.test(m)) return nextAction(ticket);
   if (/document|bring|id|requirement/.test(m)) return "Please bring a valid ID, your previous medical records or prescriptions, and your insurance card if you have one.";
@@ -359,13 +370,17 @@ function builtIn(text, ticket, staff) {
 }
 
 async function llm(message, ticket, staff) {
+  const patientTicket = ticket ? publicTicket(ticket) : null;
   const ctx = staff
-    ? { departments: db.departments.map(d => ({ name: d.name, waiting: waitingIn(d.id).length, serving: servingIn(d.id).length, avgMinutes: d.avgMinutes })) }
-    : { departments: db.departments.filter(d => d.open).map(d => ({ name: d.name, waiting: waitingIn(d.id).length })), yourTicket: ticket ? publicTicket(ticket) : null };
+    ? { departments: db.departments.map(d => ({ name: d.name, waiting: waitingIn(d.id).length, serving: servingIn(d.id).length, averageServiceTime: formatDuration(d.avgMinutes) })) }
+    : {
+      departments: db.departments.filter(d => d.open).map(d => ({ name: d.name, waiting: waitingIn(d.id).length })),
+      yourTicket: patientTicket ? { ...patientTicket, etaMinutes: undefined, estimatedWait: formatDuration(patientTicket.etaMinutes) } : null,
+    };
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
     body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-4o-mini", messages: [
-      { role: "system", content: `You are HospitalQueueAI, a concise, friendly hospital queue assistant for ${staff ? "staff" : "a patient"}. Never diagnose. Only use the data provided; never invent queue info or reveal other patients.\n${KNOWLEDGE}\nLive data: ${JSON.stringify(ctx)}` },
+      { role: "system", content: `You are HospitalQueueAI, a concise, friendly hospital queue assistant for ${staff ? "staff" : "a patient"}. Never diagnose. Only use the data provided; never invent queue info or reveal other patients. Express wait estimates in natural minutes, hours, or days, not large raw minute totals.\n${KNOWLEDGE}\nLive data: ${JSON.stringify(ctx)}` },
       { role: "user", content: message }] }),
   });
   const j = await r.json();

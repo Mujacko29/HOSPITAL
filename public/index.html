@@ -137,7 +137,7 @@ async function refresh() {
     const sel = $("dept"), cur = sel.value;
     sel.innerHTML = ds.departments.map(d => `<option value="${esc(d.id)}" ${d.open ? "" : "disabled"}>${esc(d.name)}${d.open ? "" : " (closed)"}</option>`).join("");
     if (cur) sel.value = cur;
-    $("deptList").innerHTML = ds.departments.map(d => `<div class="row"><span>${esc(d.name)}</span><b>${d.open ? d.waiting + " waiting · ~" + d.avgMinutes + " min each" : "Closed"}</b></div>`).join("");
+    $("deptList").innerHTML = ds.departments.map(d => `<div class="row"><span>${esc(d.name)}</span><b>${d.open ? d.waiting + " waiting · ~" + formatDuration(d.avgMinutes) + " each" : "Closed"}</b></div>`).join("");
 
     const t = me.ticket, live = t && ["waiting", "serving"].includes(t.status);
     $("getCard").classList.toggle("hidden", !!live); $("ticketCard").classList.toggle("hidden", !t);
@@ -145,7 +145,7 @@ async function refresh() {
       $("tDept").textContent = t.department; $("tNum").textContent = t.number; $("tNum").className = "num" + (t.status === "serving" ? " turn" : "");
       $("tStatus").textContent = t.status.replace("_", " "); $("tStatus").className = "pill " + t.status;
       $("tAhead").textContent = live && t.status === "waiting" ? t.ahead : "—"; $("tTotal").textContent = live ? t.totalWaiting : "—";
-      $("tEta").textContent = t.status === "waiting" ? "about " + t.etaMinutes + " min" : "—";
+      $("tEta").textContent = t.status === "waiting" ? (Number(t.etaMinutes) > 0 ? "about " + formatDuration(t.etaMinutes) : "less than a minute") : "—";
       $("tAction").textContent = live ? t.nextAction : "This visit is " + t.status.replace("_", " ") + ". You can get a new number when needed.";
       $("tAction").className = "action" + (t.status === "serving" ? " turn" : "");
       $("cancelBtn").classList.toggle("hidden", t.status !== "waiting");
