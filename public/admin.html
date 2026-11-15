@@ -100,6 +100,10 @@
         <p id="patientSearchStatus" class="patient-search-status" aria-live="polite">Showing the latest visits.</p>
         <div class="err" id="patientSearchErr" role="alert"></div>
         <div class="scroll"><table><thead><tr><th>Number</th><th>Patient</th><th>Service</th><th>Status</th><th>Registered</th></tr></thead><tbody id="patientRows"></tbody></table></div>
+        <h2 style="margin-top:24px">Registered patient accounts</h2>
+        <p id="patientUserStatus" class="patient-search-status" aria-live="polite"></p>
+        <div class="err" id="patientUserErr" role="alert"></div>
+        <div class="scroll"><table><thead><tr><th>Name</th><th>Phone</th><th>Actions</th></tr></thead><tbody id="patientUserRows"></tbody></table></div>
       </section>
 
       <section class="card page-view" data-view="records" hidden>
@@ -227,17 +231,26 @@ async function loadPatients() {
 
 async function loadUsers() {
   $("userErr").textContent = "";
+  $("patientUserErr").textContent = "";
   $("userStatus").textContent = "Loading accounts…";
+  $("patientUserStatus").textContent = "Loading accounts…";
   try {
     const result = await api("/api/staff/users");
-    $("userRows").innerHTML = result.users.length
+    const rows = result.users.length
       ? result.users.map(user => `<tr><td>${esc(user.name)}</td><td>${esc(user.phone)}</td><td><button class="btn bad sm" data-delete-user="${esc(user.id)}" data-user-name="${esc(user.name)}">Delete account</button></td></tr>`).join("")
       : `<tr><td colspan="3" style="color:var(--mut)">No patient accounts have been created yet.</td></tr>`;
-    $("userStatus").textContent = `${result.users.length} patient account(s).`;
+    const status = `${result.users.length} patient account(s).`;
+    $("userRows").innerHTML = rows;
+    $("patientUserRows").innerHTML = rows;
+    $("userStatus").textContent = status;
+    $("patientUserStatus").textContent = status;
   } catch (err) {
     $("userRows").innerHTML = "";
     $("userStatus").textContent = "";
     $("userErr").textContent = err.message;
+    $("patientUserRows").innerHTML = "";
+    $("patientUserStatus").textContent = "";
+    $("patientUserErr").textContent = err.message;
   }
 }
 
