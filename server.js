@@ -346,7 +346,20 @@ app.delete("/api/staff/departments/:id", needStaff, (req, res) => {
 });
 
 // ---------- AI assistant ----------
-const KNOWLEDGE = `Hospital process: 1) Create an account or log in. 2) Choose the service you need. 3) Get a queue number. 4) Wait in the department waiting area; you'll be notified when you are 2 patients away and when it's your turn. 5) Go to the counter, show your queue number and a valid ID. 6) After the consultation, staff mark your visit as done. Bring: valid ID, previous medical records, insurance card if any. Emergency: if life-threatening (chest pain, difficulty breathing, severe bleeding) go directly to the Emergency room; do not wait for the app. The assistant is not a doctor and cannot diagnose.`;
+const KNOWLEDGE = `Important patient questions and answers:
+Q: How do I get a queue number?
+A: Sign in or create a patient account, choose an open service, and tap Get queue number.
+Q: How do I check my wait?
+A: Check your queue status and estimated wait in the app. It updates regularly and notifies you when you are 2 patients away and when it is your turn.
+Q: What should I bring?
+A: Bring a valid ID, previous medical records or prescriptions, and an insurance card if you have one.
+Q: How do I cancel my number?
+A: If your ticket is still waiting, tap Cancel my number on your queue screen. Ask staff for help if it is already being served.
+Q: What if I miss my turn?
+A: Staff may mark your ticket as a no-show. Ask staff for help or request a new queue number if you still need care.
+Q: What should I do in an emergency?
+A: For a life-threatening emergency, go directly to the Emergency room or alert staff. Do not wait for the app.
+The assistant cannot diagnose or replace a clinician.`;
 
 function builtIn(text, ticket, staff) {
   const m = text.toLowerCase();
@@ -356,6 +369,18 @@ function builtIn(text, ticket, staff) {
     if (/status|queue|analy|busy/.test(m)) return db.departments.map(d => `${d.name}: ${waitingIn(d.id).length} waiting, ${servingIn(d.id).length} serving, avg ${formatDuration(d.avgMinutes)}`).join("\n");
     return "Staff commands: 'status', 'call next', or 'call next in Cardiology'.";
   }
+  if (/emergen|chest|breath|bleed|faint|unconscious/.test(m)) return "For a life-threatening emergency, go directly to the Emergency room or alert hospital staff now. Do not wait for the app.";
+  if (/miss(ed|ing)?\s+(my\s+)?(turn|call)|miss(ed|ing)?\s+the\s+call|no[\s-]?show/.test(m)) return "Staff may mark a missed call as a no-show. Ask staff for help or request a new queue number if you still need care.";
+  if (/cancel|stop waiting/.test(m)) {
+    if (!ticket) return "You don't have an active queue number to cancel.";
+    return ticket.status === "waiting"
+      ? "Tap Cancel my number on your queue screen. You can ask staff for help if you can't cancel it."
+      : "Only a waiting number can be cancelled in the app. Please ask staff for help.";
+  }
+  if (/how (do|can) i (get|join)|get.{0,20}queue number|join.{0,20}queue/.test(m)) {
+    if (ticket) return `You already have queue number ${ticket.number}. Check your queue screen for your current status and estimated wait.`;
+    return "Sign in or create a patient account, choose an open service, and tap Get queue number.";
+  }
   if (/my|wait|long|ahead|turn|position|status|how many|number/.test(m) && !/what documents/.test(m)) {
     if (!ticket) return "You don't have an active queue number yet. Pick a service and tap Get queue number.";
     const p = publicTicket(ticket);
@@ -363,9 +388,8 @@ function builtIn(text, ticket, staff) {
   }
   if (/what (should|do) i do|next step|what now/.test(m)) return nextAction(ticket);
   if (/document|bring|id|requirement/.test(m)) return "Please bring a valid ID, your previous medical records or prescriptions, and your insurance card if you have one.";
-  if (/emergen|chest|breath|bleed|faint|unconscious/.test(m)) return "If this is life-threatening, go straight to the Emergency room or ask a staff member right now. Don't wait in the regular queue.";
   if (/department|service|which|where/.test(m)) return "Available services: " + db.departments.filter(d => d.open).map(d => `${d.name} (${waitingIn(d.id).length} waiting)`).join(", ") + ".";
-  if (/register|how|process|work/.test(m)) return KNOWLEDGE.split("Bring:")[0];
+  if (/register|how|process|work/.test(m)) return "Create or sign in to a patient account, choose an open service, and tap Get queue number. Wait in the department area and follow the updates in the app.";
   return "I can explain your queue status, wait time and what to do next, and answer questions about the hospital process. I can't give medical advice.";
 }
 
