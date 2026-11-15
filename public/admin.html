@@ -164,6 +164,21 @@
 </section>
 </main>
 
+<dialog id="editDeptDialog" aria-labelledby="editDeptTitle">
+  <form id="editDeptForm">
+    <h2 id="editDeptTitle">Edit department</h2>
+    <label for="editDeptName">Department name</label>
+    <input id="editDeptName" required>
+    <label for="editDeptAvg">Average minutes per patient</label>
+    <input id="editDeptAvg" type="number" min="1" step="any" required>
+    <div class="dept-edit-actions">
+      <button class="btn line" id="cancelDeptEdit" type="button">Cancel</button>
+      <button class="btn" type="submit">Save changes</button>
+    </div>
+    <div class="err" id="editDeptError" aria-live="polite"></div>
+  </form>
+</dialog>
+
 <div class="chat hidden" id="chat"><h3 id="chatHead">💬 Staff AI Assistant</h3><div class="msgs" id="msgs"></div>
 <form id="chatForm"><input id="chatInput" placeholder="e.g. status, call next in Cardiology" autocomplete="off"><button class="btn sm">Send</button></form></div>
 
@@ -172,6 +187,7 @@
 const KEY = "hq_staff_token";
 const api = makeApi(KEY, () => showLogin());
 let timer = null, chatReady = false;
+let editingDepartmentId = null;
 
 $("loginForm").onsubmit = async e => {
   e.preventDefault();
@@ -231,9 +247,10 @@ async function load() {
   $("auto").checked = o.autoMode;
 
   $("depts").innerHTML = o.departments.map(d => `<div class="dept"><div><b>${esc(d.name)}</b><br><small style="color:var(--mut)">${d.waiting} waiting · ${d.serving} serving · ${d.avgMinutes} min avg</small></div>
-    <div class="b"><button class="btn sm" data-call="${esc(d.id)}" ${d.open ? "" : "disabled"}>Call next</button>
-    <button class="btn line sm" data-toggle="${esc(d.id)}" data-open="${d.open}">${d.open ? "Close" : "Open"}</button>
-    <button class="btn line sm" data-del="${esc(d.id)}">Delete</button></div></div>`).join("");
+  <div class="b"><button class="btn sm" data-call="${esc(d.id)}" ${d.open ? "" : "disabled"}>Call next</button>
+  <button class="btn line sm" data-toggle="${esc(d.id)}" data-open="${d.open}">${d.open ? "Close" : "Open"}</button>
+  <button class="btn line sm" data-edit="${esc(d.id)}" data-name="${esc(d.name)}" data-avg="${esc(d.avgMinutes)}">Edit</button>
+  <button class="btn line sm" data-del="${esc(d.id)}">Delete</button></div></div>`).join("");
 
   $("rows").innerHTML = o.tickets.length ? o.tickets.map(t => `<tr><td><b>${esc(t.number)}</b></td><td>${esc(t.name)}</td><td>${esc(t.department)}</td>
     <td><span class="pill ${esc(t.status)}">${esc(t.status)}</span></td><td>${timeAgo(t.createdAt)}</td><td>
@@ -253,16 +270,54 @@ async function load() {
 
 $("patientSearchForm").onsubmit = e => { e.preventDefault(); loadPatients(); };
 document.addEventListener("click", e => {
-  const b = e.target.closest("button"); if (!b) return; const d = b.dataset;
+  const b = e.target.closest("button");
+  if (!b) return;
+  const d = b.dataset;
+
   if (d.page) selectPage(d.page);
-  else if (d.call) act(async () => { const r = await api("/api/staff/call-next", "POST", { departmentId: d.call }); if (!r.ok) alert(r.message); });
+  else if (d.edit) {
+    editingDepartmentId = d.edit;
+    $("editDeptName").value = b.dataset.name;
+    $("editDeptAvg").value = b.dataset.avg;
+    $("editDeptError").textContent = "";
+    $("editDeptDialog").showModal();
+    $("editDeptName").focus();
+  }
+  else if (d.call) act(async () => {
+    const r = await api("/api/staff/call-next", "POST", { departmentId: d.call });
+    if (!r.ok) alert(r.message);
+  });
   else if (d.toggle) act(() => api("/api/staff/departments/" + d.toggle, "PATCH", { open: d.open !== "true" }));
-  else if (d.del) { if (confirm("Delete this department?")) act(() => api("/api/staff/departments/" + d.del, "DELETE")); }
+  else if (d.del) {
+    if (confirm("Delete this department?")) act(() => api("/api/staff/departments/" + d.del, "DELETE"));
+  }
   else if (d.serve) act(() => api(`/api/staff/tickets/${d.serve}/serve`, "POST"));
   else if (d.cancel) act(() => api(`/api/staff/tickets/${d.cancel}/cancel`, "POST"));
   else if (d.done) act(() => api(`/api/staff/tickets/${d.done}/complete`, "POST"));
   else if (d.noshow) act(() => api(`/api/staff/tickets/${d.noshow}/noshow`, "POST"));
 });
+$("cancelDeptEdit").onclick = () => $("editDeptDialog").close();
+$("editDeptDialog").addEventListener("close", () => { editingDepartmentId = null; });
+$("editDeptForm").onsubmit = async e => {
+  e.preventDefault();
+  const name = $("editDeptName").value.trim();
+  const avgMinutes = Number($("editDeptAvg").value);
+  if (!name || !Number.isFinite(avgMinutes) || avgMinutes < 1) {
+    $("editDeptError").textContent = "Enter a department name and an average of at least 1 minute.";
+    return;
+  }
+  if (!editingDepartmentId) {
+    $("editDeptError").textContent = "Select a department to edit.";
+    return;
+  }
+  try {
+    await api(`/api/staff/departments/${editingDepartmentId}`, "PATCH", { name, avgMinutes });
+    $("editDeptDialog").close();
+    load();
+  } catch (err) {
+    $("editDeptError").textContent = err.message;
+  }
+};
 $("auto").onchange = () => act(() => api("/api/staff/auto", "POST", { on: $("auto").checked }));
 $("addDept").onsubmit = async e => {
   e.preventDefault(); $("dErr").textContent = "";
