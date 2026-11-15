@@ -220,8 +220,24 @@ app.get("/api/staff/patients", needStaff, (req, res) => {
 });
 
 app.get("/api/staff/users", needStaff, (_req, res) => {
-  const users = db.users.slice().reverse().map(user => ({ name: user.name, phone: user.phone }));
+  const users = db.users.slice().reverse().map(user => ({ id: user.id, name: user.name, phone: user.phone }));
   res.json({ users });
+});
+
+app.delete("/api/staff/users/:id", needStaff, (req, res) => {
+  const user = db.users.find(candidate => candidate.id === req.params.id);
+  if (!user) return res.status(404).json({ error: "Patient account not found." });
+  if (db.tickets.some(ticket => ticket.userId === user.id && ["waiting", "serving"].includes(ticket.status))) {
+    return res.status(409).json({ error: "Resolve this patient's active queue ticket before deleting the account." });
+  }
+
+  db.users = db.users.filter(candidate => candidate.id !== user.id);
+  db.notifications = db.notifications.filter(notification => notification.userId !== user.id);
+  Object.entries(db.sessions).forEach(([token, session]) => {
+    if (session.role === "patient" && session.userId === user.id) delete db.sessions[token];
+  });
+  save();
+  res.json({ ok: true });
 });
 
 app.post("/api/staff/call-next", needStaff, (req, res) => res.json(callNext((req.body || {}).departmentId, "Staff")));

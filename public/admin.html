@@ -128,10 +128,10 @@
       </section>
 
       <section class="card page-view" data-view="users" hidden>
-        <h1>Patient accounts</h1><p class="sub">Accounts created through patient registration.</p>
+        <h1>Patient accounts</h1><p class="sub">Delete accounts when needed. Past visit history is retained.</p>
         <p id="userStatus" class="patient-search-status" aria-live="polite"></p>
         <div class="err" id="userErr" role="alert"></div>
-        <div class="scroll"><table><thead><tr><th>Name</th><th>Phone</th></tr></thead><tbody id="userRows"></tbody></table></div>
+        <div class="scroll"><table><thead><tr><th>Name</th><th>Phone</th><th>Actions</th></tr></thead><tbody id="userRows"></tbody></table></div>
       </section>
 
       <section class="card page-view" data-view="profile" hidden>
@@ -231,8 +231,8 @@ async function loadUsers() {
   try {
     const result = await api("/api/staff/users");
     $("userRows").innerHTML = result.users.length
-      ? result.users.map(user => `<tr><td>${esc(user.name)}</td><td>${esc(user.phone)}</td></tr>`).join("")
-      : `<tr><td colspan="2" style="color:var(--mut)">No patient accounts have been created yet.</td></tr>`;
+      ? result.users.map(user => `<tr><td>${esc(user.name)}</td><td>${esc(user.phone)}</td><td><button class="btn bad sm" data-delete-user="${esc(user.id)}" data-user-name="${esc(user.name)}">Delete account</button></td></tr>`).join("")
+      : `<tr><td colspan="3" style="color:var(--mut)">No patient accounts have been created yet.</td></tr>`;
     $("userStatus").textContent = `${result.users.length} patient account(s).`;
   } catch (err) {
     $("userRows").innerHTML = "";
@@ -276,6 +276,14 @@ document.addEventListener("click", e => {
   const d = b.dataset;
 
   if (d.page) selectPage(d.page);
+  else if (d.deleteUser) {
+    if (confirm(`Delete the account for ${b.dataset.userName}? Past visit history will be kept.`)) {
+      act(async () => {
+        await api(`/api/staff/users/${encodeURIComponent(d.deleteUser)}`, "DELETE");
+        await loadUsers();
+      });
+    }
+  }
   else if (d.edit) {
     editingDepartmentId = d.edit;
     $("editDeptName").value = b.dataset.name;
